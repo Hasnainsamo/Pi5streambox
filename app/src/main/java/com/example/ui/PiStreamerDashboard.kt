@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -67,6 +69,7 @@ fun PiStreamerDashboard(
     val outputRouting by viewModel.outputRouting.collectAsStateWithLifecycle()
     val receivingDevice by viewModel.receivingDevice.collectAsStateWithLifecycle()
     val accessDeniedTag by viewModel.accessDeniedTag.collectAsStateWithLifecycle()
+    val lastCrashInfo by viewModel.lastCrashInfo.collectAsStateWithLifecycle()
 
     val isWritingMode by viewModel.isWritingMode.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
@@ -268,6 +271,74 @@ fun PiStreamerDashboard(
                             }
                         }
                     }
+                }
+
+                // App Safe Mode Recovery Dialog popup
+                lastCrashInfo?.let { exceptionTrace ->
+                    AlertDialog(
+                        onDismissRequest = { viewModel.dismissCrashReport() },
+                        title = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "System Error Detail",
+                                    tint = Color(0xFFD32F2F)
+                                )
+                                Text(
+                                    text = "System Recovery Report",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD32F2F),
+                                    fontSize = 18.sp
+                                )
+                            }
+                        },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "An unexpected exception was intercepted and handled during the last boot cycle:",
+                                    fontSize = 13.sp,
+                                    color = SleekText
+                                )
+                                Surface(
+                                    color = SleekDeepDark,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 240.dp)
+                                        .border(1.dp, SleekTabBorder, RoundedCornerShape(8.dp))
+                                ) {
+                                    Box(modifier = Modifier.padding(8.dp)) {
+                                        Text(
+                                            text = exceptionTrace,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            fontSize = 10.sp,
+                                            color = SleekProgressActive,
+                                            modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "All pipelines have been fully reinforced. State continuity preserved.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = SleekTextMedium
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = { viewModel.dismissCrashReport() },
+                                colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
+                            ) {
+                                Text("Acknowledge & Clean", color = Color.White)
+                            }
+                        },
+                        containerColor = SleekBackground,
+                        shape = RoundedCornerShape(20.dp)
+                    )
                 }
 
                 // Selected Tab Screens
