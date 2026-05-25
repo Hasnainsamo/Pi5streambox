@@ -1,0 +1,6 @@
+{
+  "name": "RFID Stream Controller",
+  "description": "App controller for a 4K-capable Raspberry Pi 5 RFID streaming device with Wi-Fi setup, RFID reading/writing, and playback controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
