@@ -11,6 +11,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.Locale
 import java.io.File
@@ -46,7 +48,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
         // Ensure database is prepopulated safely without throwing exceptions on startup
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.prepopulateIfEmpty()
             } catch (e: Exception) {
@@ -63,7 +65,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     // Checking and handling crash logs on launch
     fun checkForCrashReports(filesDir: File) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val file = File(filesDir, "crash.txt")
                 if (file.exists()) {
@@ -149,7 +151,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     private var playbackJob: Job? = null
 
     private fun startTelemetryLoop() {
-        telemetryJob = viewModelScope.launch {
+        telemetryJob = viewModelScope.launch(Dispatchers.Default) {
             while (true) {
                 delay(4000)
                 try {
@@ -169,7 +171,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun startPlaybackTimerLoop() {
-        playbackJob = viewModelScope.launch {
+        playbackJob = viewModelScope.launch(Dispatchers.Default) {
             while (true) {
                 delay(1000)
                 try {
@@ -213,7 +215,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     // Wi-Fi Connections Control
     fun configureWifi(ssid: String, secret: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insertLog("INFO", "Pushing Wi-Fi credential pack to Raspberry Pi 5...")
                 delay(1500)
@@ -228,7 +230,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     // Pi Connection Control Toggle
     fun togglePiConnection() {
         _piConnected.value = !_piConnected.value
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (_piConnected.value) {
                     repository.insertLog("SUCCESS", "App successfully connected to Raspberry Pi 5 IP: ${_ipAddress.value}")
@@ -244,7 +246,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     // Simulated Scanning (Taps simulated card from hardware or custom slider)
     fun simulateRfidScan(uid: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 _accessDeniedTag.value = null
                 repository.insertLog("INFO", "Raspberry Pi RFID Scan Event: UID [$uid]")
@@ -294,7 +296,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     fun pressPlayPause() {
         if (!_piConnected.value) return
         _isPlaying.value = !_isPlaying.value
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val status = if (_isPlaying.value) "Resumed" else "Paused"
                 repository.insertLog("INFO", "Remote Playback Event: $status stream playlist")
@@ -314,7 +316,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
             else -> 1
         }
         _playbackSpeed.value = nextSpeed
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val msg = if (nextSpeed == 1) "Normal Speed (1x)" else "Fast-forward Mode enabled: ${nextSpeed}x"
                 repository.insertLog("INFO", "Remote Fast-Forward speed updated: $msg")
@@ -326,7 +328,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun pressSkipForward() {
         if (!_piConnected.value) return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val nextPos = _currentPositionMs.value + 15000L
                 _currentPositionMs.value = if (nextPos >= _totalDurationMs.value) 0 else nextPos
@@ -339,7 +341,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun pressSkipBackward() {
         if (!_piConnected.value) return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val nextPos = _currentPositionMs.value - 15000L
                 _currentPositionMs.value = if (nextPos < 0) 0 else nextPos
@@ -354,7 +356,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     fun volumeUp() {
         if (!_piConnected.value) return
         _volume.value = (_volume.value + 5).coerceAtMost(100)
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insertLog("INFO", "Volume raised to ${_volume.value}%")
             } catch (e: Exception) {
@@ -366,7 +368,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     fun volumeDown() {
         if (!_piConnected.value) return
         _volume.value = (_volume.value - 5).coerceAtLeast(0)
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insertLog("INFO", "Volume lowered to ${_volume.value}%")
             } catch (e: Exception) {
@@ -384,7 +386,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     fun addFifteenMinuteTimer() {
         if (!_piConnected.value) return
         _timerSecondsRemaining.value += 15 * 60 // adds 15 minutes (900 seconds)
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val totalMins = _timerSecondsRemaining.value / 60
                 repository.insertLog("SUCCESS", "Timer updated: Added 15 minutes. Stream cutoff in $totalMins mins.")
@@ -396,7 +398,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearTimer() {
         _timerSecondsRemaining.value = 0
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insertLog("INFO", "Active stream cutoff timer canceled.")
             } catch (e: Exception) {
@@ -412,7 +414,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
         if (device.isNotEmpty()) {
             _receivingDevice.value = device
         }
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insertLog("INFO", "Stream output routed to $route: ${if (route == "HDMI") "Direct TV Connection" else _receivingDevice.value}")
             } catch (e: Exception) {
@@ -423,7 +425,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
 
     // RFID Writer Functionality (Write via app / stream box)
     fun writeRfidTag(uid: String, title: String, url: String, category: String, isAuth: Boolean, resolution: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 _isWritingMode.value = true
                 repository.insertLog("INFO", "RFID Writer activated: Waiting for physical tag placement on Raspberry Pi...")
@@ -457,7 +459,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun insertTag(tag: RfidTag) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insertTag(tag)
             } catch (e: Exception) {
@@ -467,7 +469,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun deleteRfidTag(tag: RfidTag) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.deleteTag(tag)
                 repository.insertLog("WARNING", "Removed RFID database linkage for tag UID: ${tag.uid}")
@@ -482,7 +484,7 @@ class PiStreamerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun clearAllLogs() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.clearLogs()
             } catch (e: Exception) {
